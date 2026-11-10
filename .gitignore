@@ -5,5 +5,5 @@ dist/
 *.spec
 __pycache__/
 *.pyc
-# 本地测试数据
-.smoke/
+# 打包时由 git tag 生成
+_version.py

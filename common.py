@@ -17,7 +17,16 @@ if sys.stdout is None:
 if sys.stderr is None:
     sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
+# 版本号。打包时由 重新打包exe.bat 读取 git tag 生成 _version.py（不入库）并编进 exe，
+# 这样版本号只有「git tag」一个来源，不会再出现 tag 打了 v1.2.0 而 exe 里还是 1.1.0 的错位。
+# 源码直接运行时若没有 _version.py，就用下面的兜底值。
 VERSION = "1.1.0"
+try:
+    from _version import VERSION as _built_version
+
+    VERSION = _built_version
+except ImportError:
+    pass
 
 # 自动更新检查的仓库（改成你自己的仓库即可；tag 形如 v1.2.0，资产放 KeyHeat.exe）
 UPDATE_REPO = "zhangjiawang975/KeyHeat"

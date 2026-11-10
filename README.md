@@ -33,13 +33,15 @@ Windows 上的键盘使用热力图：全局统计每个按键被按下的次数
 
 ### 发布新版本（以后要做的）
 
-1. 改 `common.py` 里的 `VERSION = "1.2.0"`
-2. 双击 `重新打包exe.bat`
-3. 在 GitHub 打 tag `v1.2.0`，把 `KeyHeat.exe` 作为 **Release 资产**上传
+1. 提交代码，然后打 tag：`git tag v1.2.0`（**版本号只有这一个来源**）
+2. 双击 `重新打包exe.bat`：它会读 tag 生成 `_version.py` 再打包，exe 里的版本号就是 `1.2.0`
+3. `git push origin main --tags`，在 GitHub 用该 tag 建 Release，把 `KeyHeat.exe` 作为 **Release 资产**上传
    - 资产名必须是 `KeyHeat.exe`，或匹配 `KeyHeat*.exe`
    - tag 必须是 `vX.Y.Z`，程序按语义版本比较（1.10.0 > 1.9.9）
+   - 打包时如果 tag 不在当前提交上、或工作区有未提交改动，脚本会警告（exe 会报 tag 的版本但装着更新的代码）
 4. 老用户下次启动就会看到更新提示
 
+> 没有 tag 时（比如刚 clone 下来），脚本会退回用 `common.py` 里的 `VERSION` 兜底值，并提示你先打 tag。
 > 仓库地址写在 `common.py` 的 `UPDATE_REPO`，当前是 `zhangjiawang975/KeyHeat`。
 > 仓库名不同就改这一行（或用 `--repo` 临时指定）。
 
@@ -48,14 +50,14 @@ Windows 上的键盘使用热力图：全局统计每个按键被按下的次数
 | 文件 | 职责 | 行数 |
 | --- | --- | --- |
 | `keyheat.py` | 入口：参数解析、装配各模块、主循环 | 194 |
-| `common.py` | 路径、常量、`VERSION`、日志、Win32 DLL 句柄 | 75 |
+| `common.py` | 路径、常量、`VERSION`、日志、Win32 DLL 句柄 | 84 |
 | `store.py` | 统计数据：内存计数 + 按天明细 + JSON 持久化 | 156 |
 | `winhook.py` | 全局键盘钩子（`WH_KEYBOARD_LL`）+ 去重消费线程 | 117 |
 | `trayicon.py` | 托盘图标与右键菜单（纯 ctypes，无第三方库） | 273 |
 | `autostart.py` | 开机自启（写 HKCU 的 Run 键） | 56 |
 | `server.py` | 本地 HTTP 服务、路由、单实例探测 | 202 |
-| `updater.py` | 检查 / 下载 / 校验 / 替换 / 重启 | 401 |
-| `ui.html` | 单文件界面（键盘图、热力配色、更新提示条） | 967 |
+| `updater.py` | 检查 / 下载 / 校验 / 替换 / 重启 | 399 |
+| `ui.html` | 单文件界面（键盘图、热力配色、更新提示条） | 962 |
 
 ## 界面功能
 
@@ -64,7 +66,7 @@ Windows 上的键盘使用热力图：全局统计每个按键被按下的次数
 | 键盘布局 | 右上角切换：75%（雨75）/ 65% / 60% / 87 TKL / 104 全尺寸，选择会记住 |
 | 今日 / 近 7 天 / 全部 | 切换统计范围 |
 | 暂停统计 | 临时不计（比如输密码时） |
-| 隐藏数字 | 键帽上不显示次数，只看颜色 |
+| 显示数字 | 默认键帽上不显示次数、只看颜色；点一下可在键帽上显示次数 |
 | 导出 CSV | 导出当前范围的「按键 / 键码 / 次数 / 占比」 |
 | 开机自启 | 登录 Windows 后自动启动（写 HKCU 的 Run 键，关掉即删除） |
 | 检查更新 | 页脚版本号右边 |
@@ -125,6 +127,12 @@ python keyheat.py --port 9000     :: 换端口
 python keyheat.py --no-open       :: 不自动开浏览器
 ```
 
-改完代码要出新 exe：双击 `重新打包exe.bat`（会自动装 PyInstaller 后打包）。
+改完代码要出新 exe：双击 `重新打包exe.bat`。
 
-只依赖 Python 3.8+ 标准库，源码方式无需安装任何第三方包。
+它做三件事：读 git tag 生成 `_version.py`（版本号唯一来源）→ 在 `..\.buildenv` 建 venv 装 PyInstaller
+（不污染系统 Python）→ 打包并把产物放到 `KeyHeat.exe`。约 20~50 秒。
+
+> 注意它**不是启动器**，只负责构建。平时运行直接双击 `KeyHeat.exe`。
+> 没有 tag 时会退回 `common.py` 里的 `VERSION` 兜底值并提示你先 `git tag v1.0.0`。
+
+只依赖 Python 3.8+ 标准库，源码方式无需安装任何第三方包（打包才需要 PyInstaller）。

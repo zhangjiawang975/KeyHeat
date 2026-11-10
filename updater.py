@@ -80,13 +80,11 @@ def wait_pid_exit(pid, timeout_ms=20000):
 class Updater:
     """状态机：idle → checking → (uptodate | available) → downloading → ready。"""
 
-    def __init__(self, current=VERSION, repo=UPDATE_REPO, on_quit=None,
-                 auto_check_delay=8, api_base=""):
+    def __init__(self, current=VERSION, repo=UPDATE_REPO, on_quit=None, api_base=""):
         self.current = current
         self.repo = repo or UPDATE_REPO
         self.api = api_base or API_LATEST
         self.on_quit = on_quit
-        self.auto_check_delay = auto_check_delay
         self.lock = threading.Lock()
         self.state = "idle"
         self.latest = None      # {version, notes, url, size, digest, page}

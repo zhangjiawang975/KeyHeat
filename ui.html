@@ -124,9 +124,10 @@
     margin-top:3px;line-height:1;font-weight:500;opacity:0;transition:opacity .2s;
     font-variant-numeric:tabular-nums;
   }
+  /* 没有内容时不占位，否则空元素的 margin-top 会把键帽上的字母顶偏 */
+  .key .num:empty{display:none;}
   .key[data-n="1"] .num{opacity:.95;}
   .key.hot{box-shadow:inset 0 -1.5px 0 rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.35);}
-  .key.blink{outline:2px solid rgba(207,34,51,.35);outline-offset:1px;}
 
   /* ---------- toolbar ---------- */
   .toolbar{display:flex;align-items:center;gap:9px;margin-top:16px;flex-wrap:wrap;}
@@ -141,10 +142,6 @@
   .btn.on:hover{background:#eaf8f1;}
   .btn.danger{color:#b3261e;border-color:#f0d8d5;}
   .btn.danger:hover{background:#fdf4f3;}
-  .btn .kbd{
-    font-size:10.5px;color:var(--ink-3);border:1px solid var(--line-soft);
-    border-radius:5px;padding:1px 5px;margin-left:7px;background:#fbfaf7;
-  }
   .spacer{flex:1 1 auto;}
   .sep{width:1px;height:20px;background:var(--line);margin:0 2px;}
   .hint{font-size:11.5px;color:var(--ink-3);}
@@ -287,7 +284,7 @@
 
     <div class="toolbar">
       <button class="btn" id="btnPause">暂停统计</button>
-      <button class="btn" id="btnNums">隐藏数字</button>
+      <button class="btn" id="btnNums">显示数字</button>
       <button class="btn" id="btnCsv">导出 CSV</button>
       <button class="btn" id="btnAuto" title="登录 Windows 后自动启动 KeyHeat">开机自启 · 关</button>
       <div class="spacer"></div>
@@ -538,7 +535,7 @@
   var boardWrap = document.getElementById("boardWrap");
   var tip = document.getElementById("tip");
   var layoutSel = document.getElementById("layoutSel");
-  var U = 44, GAP = 5, showNums = true;
+  var U = 44, GAP = 5, showNums = false;   // 默认只看颜色，不显示次数
   var lastCounts = {};
   var CUR = null;
 
@@ -716,7 +713,6 @@
   }
 
   function checkUpdate() {
-    var t = document.getElementById("verText");
     document.getElementById("lnkCheck").textContent = "检查中…";
     control("check_update").then(function () {
       setTimeout(function () { document.getElementById("lnkCheck").textContent = "检查更新"; }, 2500);
@@ -767,7 +763,6 @@
     if (d.update) {
       updateInfo = d.update;
       renderUpdate(d.update);
-      if (d.update.state === "uptodate" && !d.update.latest) { /* 保持安静 */ }
     }
 
     autoOn = !!d.autostart;
