@@ -1,0 +1,9 @@
+# 构建产物（exe 作为 Release 资产发布，不进仓库）
+KeyHeat.exe
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+# 本地测试数据
+.smoke/

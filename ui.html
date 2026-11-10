@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>键盘热力图</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23cf2233'/%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='9' width='5' height='4' rx='1'/%3E%3Crect x='13' y='9' width='5' height='4' rx='1'/%3E%3Crect x='20' y='9' width='6' height='4' rx='1'/%3E%3Crect x='6' y='15' width='5' height='4' rx='1'/%3E%3Crect x='13' y='15' width='5' height='4' rx='1'/%3E%3Crect x='20' y='15' width='6' height='4' rx='1'/%3E%3Crect x='6' y='21' width='20' height='4' rx='1'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#f4f2ee;
+    --panel:#ffffff;
+    --line:#e7e2d9;
+    --line-soft:#efeae2;
+    --ink:#1f1d1a;
+    --ink-2:#6b655c;
+    --ink-3:#9c958a;
+    --heat:#cf2233;
+    --ok:#2ea86b;
+    --gap:5px;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 520px at 50% -12%, #fffdf8 0%, rgba(255,253,248,0) 70%),
+      linear-gradient(180deg,#f5f3ef 0%, #efecE6 100%);
+    background-color:var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  .app{max-width:1180px;margin:0 auto;padding:26px 26px 44px;}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px;}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0;}
+  .logo{
+    width:42px;height:42px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(150deg,#e14b3d,#b3121a 78%);
+    box-shadow:0 6px 16px -8px rgba(179,18,26,.75), inset 0 1px 0 rgba(255,255,255,.35);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo svg{display:block;}
+  h1{margin:0;font-size:21px;font-weight:650;letter-spacing:-.015em;line-height:1.2;}
+  .sub{margin:3px 0 0;font-size:12.5px;color:var(--ink-3);letter-spacing:.005em;}
+  .status{
+    display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;
+    background:#fff;border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px 7px 12px;font-size:12.5px;color:var(--ink-2);
+    box-shadow:0 1px 2px rgba(30,25,20,.04);
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(46,168,107,.15);}
+  .dot.live{animation:pulse 2s ease-in-out infinite;}
+  .dot.off{background:#b8b2a8;box-shadow:0 0 0 3px rgba(184,178,168,.18);animation:none;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(46,168,107,.15);}50%{box-shadow:0 0 0 6px rgba(46,168,107,.05);}}
+
+  /* ---------- stat cards ---------- */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px;}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:13px 15px 12px;box-shadow:0 1px 2px rgba(30,25,20,.03);
+  }
+  .card .k{font-size:11.5px;color:var(--ink-3);letter-spacing:.04em;margin-bottom:6px;}
+  .card .v{font-size:23px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.05;}
+  .card .v small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:3px;letter-spacing:0;}
+  .card .f{font-size:11.5px;color:var(--ink-3);margin-top:5px;font-variant-numeric:tabular-nums;}
+  #topKey{font-size:19px;}
+
+  /* ---------- panel ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 20px 20px;
+    box-shadow:0 1px 2px rgba(30,25,20,.04), 0 18px 40px -28px rgba(30,25,20,.35);
+  }
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:15px;flex-wrap:wrap;}
+  .tabs{display:inline-flex;background:#f3f0ea;border-radius:10px;padding:3px;gap:2px;}
+  .tabs button{
+    appearance:none;border:0;background:transparent;cursor:pointer;
+    font:inherit;font-size:12.5px;color:var(--ink-2);
+    padding:6px 13px;border-radius:8px;transition:background .16s,color .16s,box-shadow .16s;
+  }
+  .tabs button:hover{color:var(--ink);}
+  .tabs button[aria-selected="true"]{
+    background:#fff;color:var(--ink);font-weight:600;
+    box-shadow:0 1px 2px rgba(30,25,20,.10),0 0 0 1px rgba(30,25,20,.04);
+  }
+  .legend{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--ink-3);}
+  .head-right{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .sel{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-3);}
+  .sel select{
+    appearance:none;-webkit-appearance:none;font:inherit;font-size:12.5px;
+    color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;
+    padding:6px 28px 6px 11px;cursor:pointer;line-height:1.35;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239c958a' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    box-shadow:0 1px 2px rgba(30,25,20,.04);transition:background-color .15s,border-color .15s;
+  }
+  .sel select:hover{background-color:#faf8f4;border-color:#ddd6ca;}
+  .sel select:focus{outline:none;border-color:#cf2233;box-shadow:0 0 0 3px rgba(207,34,51,.10);}
+  .key.novk{border-style:dashed;}
+  .legend .bar{
+    width:132px;height:8px;border-radius:99px;
+    background:linear-gradient(90deg,#f7f5f1,#fdf1dc 10%,#fcd596 28%,#faa654 48%,#ee653a 68%,#ce2836 85%,#7c0a20);
+    border:1px solid rgba(30,25,20,.09);
+  }
+
+  /* ---------- keyboard ---------- */
+  .board-wrap{overflow-x:auto;overflow-y:hidden;padding-bottom:2px;}
+  #board{position:relative;margin:0 auto;}
+  .key{
+    position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border-radius:7px;border:1px solid rgba(30,25,20,.09);
+    background:#f7f5f1;color:#a9a29a;
+    transition:background-color .28s ease,color .28s ease,border-color .28s ease,box-shadow .28s ease;
+    user-select:none;cursor:default;overflow:hidden;
+    box-shadow:inset 0 -1.5px 0 rgba(30,25,20,.05);
+  }
+  .key .lbl{line-height:1;font-weight:560;letter-spacing:.01em;}
+  .key .lbl.long{font-weight:520;}
+  .key .num{
+    margin-top:3px;line-height:1;font-weight:500;opacity:0;transition:opacity .2s;
+    font-variant-numeric:tabular-nums;
+  }
+  .key[data-n="1"] .num{opacity:.95;}
+  .key.hot{box-shadow:inset 0 -1.5px 0 rgba(0,0,0,.10), inset 0 1px 0 rgba(255,255,255,.35);}
+  .key.blink{outline:2px solid rgba(207,34,51,.35);outline-offset:1px;}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;align-items:center;gap:9px;margin-top:16px;flex-wrap:wrap;}
+  .btn{
+    appearance:none;cursor:pointer;font:inherit;font-size:12.5px;color:var(--ink-2);
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;
+    transition:background .15s,border-color .15s,color .15s,transform .08s;
+  }
+  .btn:hover{background:#faf8f4;color:var(--ink);}
+  .btn:active{transform:translateY(1px);}
+  .btn.on{color:#1b6b45;border-color:#bfe0cf;background:#f2fbf6;}
+  .btn.on:hover{background:#eaf8f1;}
+  .btn.danger{color:#b3261e;border-color:#f0d8d5;}
+  .btn.danger:hover{background:#fdf4f3;}
+  .btn .kbd{
+    font-size:10.5px;color:var(--ink-3);border:1px solid var(--line-soft);
+    border-radius:5px;padding:1px 5px;margin-left:7px;background:#fbfaf7;
+  }
+  .spacer{flex:1 1 auto;}
+  .sep{width:1px;height:20px;background:var(--line);margin:0 2px;}
+  .hint{font-size:11.5px;color:var(--ink-3);}
+  .hint b{color:var(--ink-2);font-weight:600;}
+  .foot-note{
+    margin:11px 0 0;font-size:11.5px;color:var(--ink-3);
+    display:flex;align-items:center;gap:6px;
+  }
+  .foot-note b{color:var(--ink-2);font-weight:600;}
+  .ver{margin-left:auto;display:inline-flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums;}
+  .ver a{color:var(--ink-3);text-decoration:none;border-bottom:1px dashed var(--line);cursor:pointer;}
+  .ver a:hover{color:var(--heat);border-bottom-color:rgba(207,34,51,.35);}
+
+  /* 更新提示条 */
+  .update-bar{
+    display:flex;align-items:center;gap:12px;margin-bottom:12px;
+    background:linear-gradient(180deg,#f3fbf6,#eef8f2);
+    border:1px solid #cfe8da;border-radius:14px;padding:11px 14px;
+    box-shadow:0 1px 2px rgba(30,25,20,.03);
+  }
+  .update-bar[hidden]{display:none;}
+  .update-bar .ub-icon{
+    width:26px;height:26px;flex:0 0 auto;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;font-size:14px;font-weight:700;color:#fff;
+    background:linear-gradient(150deg,#38b27a,#1f8f5e);
+  }
+  .ub-main{min-width:0;flex:1 1 auto;}
+  .ub-title{font-size:13px;font-weight:600;color:#1c5f42;letter-spacing:.01em;}
+  .ub-sub{font-size:11.5px;color:#5d8a74;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .update-bar .ub-btn{flex:0 0 auto;color:#1b6b45;border-color:#bfe0cf;background:#fff;font-weight:600;}
+  .update-bar .ub-btn:hover{background:#f2fbf6;}
+  .update-bar .ub-btn:disabled{opacity:.65;cursor:default;}
+  .ub-close{flex:0 0 auto;border:0;background:transparent;color:#7ba691;font-size:17px;line-height:1;
+    cursor:pointer;padding:4px 6px;border-radius:6px;}
+  .ub-close:hover{background:rgba(31,143,94,.08);color:#1f8f5e;}
+  .update-bar.err{background:linear-gradient(180deg,#fff7f5,#fdf1ee);border-color:#f2d4cd;}
+  .update-bar.err .ub-icon{background:linear-gradient(150deg,#e8705a,#c9382a);}
+  .update-bar.err .ub-title{color:#8f2c1e;}
+  .update-bar.err .ub-sub{color:#a9695c;}
+
+  /* ---------- tooltip ---------- */
+  #tip{
+    position:fixed;z-index:40;pointer-events:none;opacity:0;transform:translateY(2px);
+    transition:opacity .12s,transform .12s;
+    background:#211e1a;color:#f7f4ee;border-radius:9px;padding:7px 11px;
+    font-size:12px;line-height:1.45;box-shadow:0 8px 22px -8px rgba(0,0,0,.5);
+    white-space:nowrap;
+  }
+  #tip.show{opacity:1;transform:translateY(0);}
+  #tip b{font-weight:650;}
+  #tip .m{color:#b9b1a6;}
+
+  @media (max-width:820px){
+    .app{padding:18px 14px 32px;}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    h1{font-size:19px;}
+  }
+  /* 系统开启「减少动态效果」时去掉过渡，避免颜色渐变动画 */
+  @media (prefers-reduced-motion: reduce){
+    .key, #tip{transition:none !important;}
+    .dot.live{animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <g stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".95">
+            <path d="M3 7h1.6M7 7h1.6M11 7h1.6M15 7h1.6M19 7h1.6"/>
+            <path d="M3 11h1.6M7 11h1.6M11 11h1.6M15 11h1.6M19 11h1.6"/>
+            <path d="M3 15h18"/>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h1>键盘热力图</h1>
+        <p class="sub">实时统计每个键的敲击次数 · 只记录按键编号，不记录任何输入内容</p>
+      </div>
+    </div>
+    <div class="status"><span class="dot live" id="dot"></span><span id="statusText">监听中</span></div>
+  </header>
+
+  <div class="update-bar" id="updateBar" hidden>
+    <div class="ub-icon">↓</div>
+    <div class="ub-main">
+      <div class="ub-title" id="ubTitle">发现新版本</div>
+      <div class="ub-sub" id="ubSub"></div>
+    </div>
+    <button class="btn ub-btn" id="ubAction">立即更新</button>
+    <button class="ub-close" id="ubClose" title="本次先不提示">&times;</button>
+  </div>
+
+  <section class="stats">
+    <div class="card">
+      <div class="k">累计敲击</div>
+      <div class="v" id="statAll">0</div>
+      <div class="f" id="statAllSub">本次 0 次</div>
+    </div>
+    <div class="card">
+      <div class="k">今日敲击</div>
+      <div class="v" id="statToday">0</div>
+      <div class="f" id="statTodaySub">—</div>
+    </div>
+    <div class="card">
+      <div class="k">当前速度</div>
+      <div class="v"><span id="statKpm">0</span><small>次/分</small></div>
+      <div class="f">最近 60 秒</div>
+    </div>
+    <div class="card">
+      <div class="k">最高频键</div>
+      <div class="v" id="topKey">—</div>
+      <div class="f" id="topKeySub">当前范围</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div class="tabs" role="tablist">
+        <button role="tab" data-range="today" aria-selected="true">今日</button>
+        <button role="tab" data-range="7d" aria-selected="false">近 7 天</button>
+        <button role="tab" data-range="all" aria-selected="false">全部</button>
+      </div>
+      <div class="head-right">
+        <label class="sel" title="切换键盘布局（只影响显示，统计不受影响）">
+          <span>键盘布局</span>
+          <select id="layoutSel"></select>
+        </label>
+        <div class="legend">
+          <span>少</span><span class="bar"></span><span>多</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="board-wrap" id="boardWrap">
+      <div id="board"></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn" id="btnPause">暂停统计</button>
+      <button class="btn" id="btnNums">隐藏数字</button>
+      <button class="btn" id="btnCsv">导出 CSV</button>
+      <button class="btn" id="btnAuto" title="登录 Windows 后自动启动 KeyHeat">开机自启 · 关</button>
+      <div class="spacer"></div>
+      <span class="hint" id="hint"></span>
+      <button class="btn danger" id="btnResetToday">重置今日</button>
+      <button class="btn danger" id="btnResetAll">全部清零</button>
+      <div class="sep"></div>
+      <button class="btn" id="btnQuit" title="保存数据并结束进程">退出程序</button>
+    </div>
+
+    <p class="foot-note">
+      <span>ℹ</span>
+      <span>KeyHeat 在后台运行，关闭这个网页不会停止统计；要真正退出请点 <b>退出程序</b>。</span>
+      <span class="ver">
+        <span id="verText">v—</span>
+        <a href="#" id="lnkCheck">检查更新</a>
+      </span>
+    </p>
+  </section>
+</div>
+
+<div id="tip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===================== 键盘布局定义 =====================
+  // 布局 = 网格尺寸 cols×rows（单位 u）+ 每个键的绝对坐标
+  // vk: Windows 虚拟键码 | vks: 多个键码合计（旋钮） | noVk: 硬件层按键，系统收不到（Fn）
+
+  function B() {
+    var keys = [];
+    return {
+      keys: keys,
+      row: function (y, items, x0) {
+        var x = x0 || 0;
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if (it.sp) { x += it.sp; continue; }
+          var w = it.w || 1, h = it.h || 1;
+          keys.push({ x: x, y: y, w: w, h: h, label: it.l, vk: it.vk, vks: it.vks, noVk: it.noVk });
+          x += w;
+        }
+        return x;
+      },
+      put: function (x, y, w, h, label, vk, vks, noVk) {
+        keys.push({ x: x, y: y, w: w, h: h, label: label, vk: vk, vks: vks, noVk: noVk });
+      }
+    };
+  }
+
+  function numRow() {
+    return [
+      { l: "`", vk: 192 }, { l: "1", vk: 49 }, { l: "2", vk: 50 }, { l: "3", vk: 51 }, { l: "4", vk: 52 },
+      { l: "5", vk: 53 }, { l: "6", vk: 54 }, { l: "7", vk: 55 }, { l: "8", vk: 56 }, { l: "9", vk: 57 },
+      { l: "0", vk: 48 }, { l: "-", vk: 189 }, { l: "=", vk: 187 }, { l: "Backspace", vk: 8, w: 2 }
+    ];
+  }
+  function qRow() {
+    return [
+      { l: "Tab", vk: 9, w: 1.5 },
+      { l: "Q", vk: 81 }, { l: "W", vk: 87 }, { l: "E", vk: 69 }, { l: "R", vk: 82 }, { l: "T", vk: 84 },
+      { l: "Y", vk: 89 }, { l: "U", vk: 85 }, { l: "I", vk: 73 }, { l: "O", vk: 79 }, { l: "P", vk: 80 },
+      { l: "[", vk: 219 }, { l: "]", vk: 221 }, { l: "\\", vk: 220, w: 1.5 }
+    ];
+  }
+  function aRow() {
+    return [
+      { l: "Caps", vk: 20, w: 1.75 },
+      { l: "A", vk: 65 }, { l: "S", vk: 83 }, { l: "D", vk: 68 }, { l: "F", vk: 70 }, { l: "G", vk: 71 },
+      { l: "H", vk: 72 }, { l: "J", vk: 74 }, { l: "K", vk: 75 }, { l: "L", vk: 76 },
+      { l: ";", vk: 186 }, { l: "'", vk: 222 }, { l: "Enter", vk: 13, w: 2.25 }
+    ];
+  }
+  function zRow(shiftR) {
+    return [
+      { l: "Shift", vk: 160, w: 2.25 },
+      { l: "Z", vk: 90 }, { l: "X", vk: 88 }, { l: "C", vk: 67 }, { l: "V", vk: 86 }, { l: "B", vk: 66 },
+      { l: "N", vk: 78 }, { l: "M", vk: 77 },
+      { l: ",", vk: 188 }, { l: ".", vk: 190 }, { l: "/", vk: 191 },
+      { l: "Shift", vk: 161, w: shiftR }
+    ];
+  }
+  function navCluster(b, x) {
+    b.row(0, [{ l: "PrtSc", vk: 44 }, { l: "ScrLk", vk: 145 }, { l: "Pause", vk: 19 }], x);
+    b.row(1, [{ l: "Ins", vk: 45 }, { l: "Home", vk: 36 }, { l: "PgUp", vk: 33 }], x);
+    b.row(2, [{ l: "Del", vk: 46 }, { l: "End", vk: 35 }, { l: "PgDn", vk: 34 }], x);
+    b.row(3, [{ sp: 1 }, { l: "↑", vk: 38 }], x);
+    b.row(4, [{ l: "←", vk: 37 }, { l: "↓", vk: 40 }, { l: "→", vk: 39 }], x);
+  }
+  function numpad(b, x) {
+    b.row(1, [{ l: "Num", vk: 144 }, { l: "/", vk: 111 }, { l: "*", vk: 106 }, { l: "-", vk: 109 }], x);
+    b.row(2, [{ l: "7", vk: 103 }, { l: "8", vk: 104 }, { l: "9", vk: 105 }, { l: "+", vk: 107, h: 2 }], x);
+    b.row(3, [{ l: "4", vk: 100 }, { l: "5", vk: 101 }, { l: "6", vk: 102 }], x);
+    b.row(4, [{ l: "1", vk: 97 }, { l: "2", vk: 98 }, { l: "3", vk: 99 }, { l: "Ent", vk: 13, h: 2 }], x);
+    b.row(5, [{ l: "0", vk: 96, w: 2 }, { l: ".", vk: 110 }], x);
+  }
+
+  // ---- 104 全尺寸 ----
+  function buildFull() {
+    var b = B();
+    b.row(0, [{ l: "Esc", vk: 27 }, { sp: 0.5 },
+      { l: "F1", vk: 112 }, { l: "F2", vk: 113 }, { l: "F3", vk: 114 }, { l: "F4", vk: 115 }, { sp: 0.5 },
+      { l: "F5", vk: 116 }, { l: "F6", vk: 117 }, { l: "F7", vk: 118 }, { l: "F8", vk: 119 }, { sp: 0.5 },
+      { l: "F9", vk: 120 }, { l: "F10", vk: 121 }, { l: "F11", vk: 122 }, { l: "F12", vk: 123 }]);
+    b.row(1, numRow());
+    b.row(2, qRow());
+    b.row(3, aRow());
+    b.row(4, zRow(2.75));
+    b.row(5, [
+      { l: "Ctrl", vk: 162, w: 1.25 }, { l: "Win", vk: 91, w: 1.25 }, { l: "Alt", vk: 164, w: 1.25 },
+      { l: "Space", vk: 32, w: 6.25 },
+      { l: "Alt", vk: 165, w: 1.25 }, { l: "Win", vk: 92, w: 1.25 }, { l: "Menu", vk: 93, w: 1.25 },
+      { l: "Ctrl", vk: 163, w: 1.25 }]);
+    navCluster(b, 15.55);
+    numpad(b, 19.0);
+    return b.keys;
+  }
+
+  // ---- 87 键 TKL ----
+  function buildTkl() {
+    var b = B();
+    b.row(0, [{ l: "Esc", vk: 27 }, { sp: 0.5 },
+      { l: "F1", vk: 112 }, { l: "F2", vk: 113 }, { l: "F3", vk: 114 }, { l: "F4", vk: 115 }, { sp: 0.5 },
+      { l: "F5", vk: 116 }, { l: "F6", vk: 117 }, { l: "F7", vk: 118 }, { l: "F8", vk: 119 }, { sp: 0.5 },
+      { l: "F9", vk: 120 }, { l: "F10", vk: 121 }, { l: "F11", vk: 122 }, { l: "F12", vk: 123 }]);
+    b.row(1, numRow());
+    b.row(2, qRow());
+    b.row(3, aRow());
+    b.row(4, zRow(2.75));
+    b.row(5, [
+      { l: "Ctrl", vk: 162, w: 1.25 }, { l: "Win", vk: 91, w: 1.25 }, { l: "Alt", vk: 164, w: 1.25 },
+      { l: "Space", vk: 32, w: 6.25 },
+      { l: "Alt", vk: 165, w: 1.25 }, { l: "Win", vk: 92, w: 1.25 }, { l: "Menu", vk: 93, w: 1.25 },
+      { l: "Ctrl", vk: 163, w: 1.25 }]);
+    navCluster(b, 15.55);
+    return b.keys;
+  }
+
+  // ---- 75%（雨75 / Rainy75：82 键 + 旋钮）----
+  function build75() {
+    var b = B();
+    b.row(0, [
+      { l: "Esc", vk: 27 },
+      { l: "F1", vk: 112 }, { l: "F2", vk: 113 }, { l: "F3", vk: 114 }, { l: "F4", vk: 115 },
+      { l: "F5", vk: 116 }, { l: "F6", vk: 117 }, { l: "F7", vk: 118 }, { l: "F8", vk: 119 },
+      { l: "F9", vk: 120 }, { l: "F10", vk: 121 }, { l: "F11", vk: 122 }, { l: "F12", vk: 123 },
+      { sp: 0.25 }, { l: "PrtSc", vk: 44 }, { l: "Ins", vk: 45 }]);
+    // 右上角旋钮：顺时针音量+ / 逆时针音量- / 按下静音，汇总三种媒体键
+    b.put(15.25, 0, 1, 1, "旋钮", 0, [173, 174, 175]);
+    b.row(1, numRow());
+    b.put(15.25, 1, 1, 1, "Del", 46);
+    b.row(2, qRow());
+    b.put(15.25, 2, 1, 1, "Home", 36);
+    b.row(3, aRow());
+    b.put(15.25, 3, 1, 1, "PgUp", 33);
+    b.row(4, zRow(1.75));
+    b.put(14.0, 4, 1, 1, "↑", 38);
+    b.put(15.25, 4, 1, 1, "PgDn", 34);
+    b.row(5, [
+      { l: "Ctrl", vk: 162, w: 1.25 }, { l: "Win", vk: 91, w: 1.25 }, { l: "Alt", vk: 164, w: 1.25 },
+      { l: "Space", vk: 32, w: 6.25 },
+      { l: "Alt", vk: 165, w: 1 }, { l: "Fn", w: 1, noVk: true }, { l: "Ctrl", vk: 163, w: 1 },
+      { l: "←", vk: 37 }, { l: "↓", vk: 40 }, { l: "→", vk: 39 }]);
+    return b.keys;
+  }
+
+  // ---- 65%（68 键）----
+  function build68() {
+    var b = B();
+    b.row(0, numRow());
+    b.row(1, qRow());
+    b.row(2, aRow());
+    b.row(3, zRow(1.75));
+    b.put(14.0, 3, 1, 1, "↑", 38);
+    b.row(4, [
+      { l: "Ctrl", vk: 162, w: 1.25 }, { l: "Win", vk: 91, w: 1.25 }, { l: "Alt", vk: 164, w: 1.25 },
+      { l: "Space", vk: 32, w: 6.25 },
+      { l: "Alt", vk: 165, w: 1 }, { l: "Fn", w: 1, noVk: true }, { l: "Ctrl", vk: 163, w: 1 },
+      { l: "←", vk: 37 }, { l: "↓", vk: 40 }, { l: "→", vk: 39 }]);
+    return b.keys;
+  }
+
+  // ---- 60%（61 键）----
+  function build61() {
+    var b = B();
+    b.row(0, numRow());
+    b.row(1, qRow());
+    b.row(2, aRow());
+    b.row(3, zRow(2.75));
+    b.row(4, [
+      { l: "Ctrl", vk: 162, w: 1.25 }, { l: "Win", vk: 91, w: 1.25 }, { l: "Alt", vk: 164, w: 1.25 },
+      { l: "Space", vk: 32, w: 6.25 },
+      { l: "Alt", vk: 165, w: 1.25 }, { l: "Win", vk: 92, w: 1.25 }, { l: "Menu", vk: 93, w: 1.25 },
+      { l: "Ctrl", vk: 163, w: 1.25 }]);
+    return b.keys;
+  }
+
+  var DEFAULT_LAYOUT = "y75";
+
+  var LAYOUTS = [
+    { id: "y75",  name: "75% · 雨75（82键+旋钮）", cols: 16.25, rows: 6, build: build75 },
+    { id: "k68",  name: "65% · 68 键",            cols: 16,    rows: 5, build: build68 },
+    { id: "k61",  name: "60% · 61 键",            cols: 15,    rows: 5, build: build61 },
+    { id: "tkl",  name: "87 键 TKL",              cols: 18.55, rows: 6, build: buildTkl },
+    { id: "full", name: "104 全尺寸",              cols: 23,    rows: 6, build: buildFull }
+  ];
+
+  // 全局键名表：用于导出 CSV / 最热键（不局限于当前布局）
+  var SPECIAL_NAMES = { 173: "静音", 174: "音量-", 175: "音量+" };
+  var GLOBAL_NAMES = {};
+  LAYOUTS.forEach(function (d) {
+    d.build().forEach(function (k) {
+      if (k.vk && !(k.vk in GLOBAL_NAMES)) GLOBAL_NAMES[k.vk] = k.label;
+    });
+  });
+  function keyName(vk) {
+    return GLOBAL_NAMES[vk] || SPECIAL_NAMES[vk] || ("VK" + vk);
+  }
+
+  // ---- 颜色梯度 ----
+  var RAMP = [
+    [0.00, [247, 245, 241]],
+    [0.10, [253, 241, 220]],
+    [0.28, [252, 213, 150]],
+    [0.48, [250, 166, 84]],
+    [0.68, [238, 101, 58]],
+    [0.85, [206, 40, 54]],
+    [1.00, [124, 10, 32]]
+  ];
+  function ramp(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (var i = 1; i < RAMP.length; i++) {
+      if (t <= RAMP[i][0]) {
+        var a = RAMP[i - 1], b = RAMP[i];
+        var k = (t - a[0]) / (b[0] - a[0] || 1);
+        return "rgb(" + Math.round(a[1][0] + (b[1][0] - a[1][0]) * k) + ","
+                     + Math.round(a[1][1] + (b[1][1] - a[1][1]) * k) + ","
+                     + Math.round(a[1][2] + (b[1][2] - a[1][2]) * k) + ")";
+      }
+    }
+    return "rgb(124,10,32)";
+  }
+
+  // ---- 渲染 ----
+  var board = document.getElementById("board");
+  var boardWrap = document.getElementById("boardWrap");
+  var tip = document.getElementById("tip");
+  var layoutSel = document.getElementById("layoutSel");
+  var U = 44, GAP = 5, showNums = true;
+  var lastCounts = {};
+  var CUR = null;
+
+  function findLayout(id) {
+    for (var i = 0; i < LAYOUTS.length; i++) if (LAYOUTS[i].id === id) return LAYOUTS[i];
+    return LAYOUTS[0];
+  }
+
+  // 一个键在当前范围内的次数（旋钮 = 多个键码之和）
+  function countOf(k, counts) {
+    if (k.noVk) return 0;
+    if (k.vks) {
+      var s = 0;
+      for (var i = 0; i < k.vks.length; i++) s += counts[k.vks[i]] || 0;
+      return s;
+    }
+    return counts[k.vk] || 0;
+  }
+
+  function render(id) {
+    var def = findLayout(id);
+    if (CUR && CUR.id === def.id) return;
+    var keys = def.build();
+    CUR = { id: def.id, cols: def.cols, rows: def.rows, keys: keys };
+
+    hideTip();
+    board.innerHTML = "";
+    keys.forEach(function (k) {
+      var el = document.createElement("div");
+      el.className = "key" + (k.noVk ? " novk" : "");
+      var lbl = document.createElement("span");
+      lbl.className = "lbl" + (k.label.length > 3 ? " long" : "");
+      lbl.textContent = k.label;
+      var num = document.createElement("span");
+      num.className = "num";
+      el.appendChild(lbl);
+      el.appendChild(num);
+      k.el = el;
+      k.lblEl = lbl;
+      k.numEl = num;
+      board.appendChild(el);
+      el.addEventListener("mouseenter", function () { showTip(k); });
+      el.addEventListener("mousemove", moveTip);
+      el.addEventListener("mouseleave", hideTip);
+    });
+
+    if (layoutSel) layoutSel.value = def.id;
+    layout();
+    paint(lastCounts);
+  }
+
+  function layout() {
+    if (!CUR) return;
+    var avail = boardWrap.clientWidth - 2;
+    U = Math.max(26, Math.min(56, avail / CUR.cols));
+    GAP = Math.max(3, Math.round(U * 0.11));
+    board.style.width = (U * CUR.cols) + "px";
+    board.style.height = (U * CUR.rows) + "px";
+
+    CUR.keys.forEach(function (k) {
+      var e = k.el;
+      e.style.left = (k.x * U) + "px";
+      e.style.top = (k.y * U) + "px";
+      e.style.width = (k.w * U - GAP) + "px";
+      e.style.height = (k.h * U - GAP) + "px";
+      e.style.borderRadius = Math.max(4, Math.round(U * 0.15)) + "px";
+      var base = Math.min(12.5, Math.max(8, U * 0.255));
+      var fs = k.label.length > 4 ? base * 0.72 : (k.label.length > 2 ? base * 0.87 : base);
+      k.lblEl.style.fontSize = fs.toFixed(1) + "px";
+      k.numEl.style.fontSize = Math.max(7.5, base * 0.66).toFixed(1) + "px";
+    });
+  }
+
+  // ---- 上色 ----
+  function paint(counts) {
+    lastCounts = counts || {};
+    if (!CUR) return;
+    var max = 0;
+    CUR.keys.forEach(function (k) {
+      var v = countOf(k, lastCounts);
+      if (v > max) max = v;
+    });
+    var denom = Math.log1p(Math.max(1, max));
+
+    CUR.keys.forEach(function (k) {
+      var n = countOf(k, lastCounts);
+      var t = n > 0 ? Math.log1p(n) / denom : 0;
+      var e = k.el;
+      e.style.backgroundColor = ramp(t);
+      if (n > 0) {
+        e.style.color = t > 0.52 ? "#fff6f3" : "#3a342c";
+        e.style.borderColor = t > 0.52 ? "rgba(0,0,0,.16)" : "rgba(30,25,20,.10)";
+        e.classList.toggle("hot", t > 0.52);
+      } else {
+        e.style.color = "#a9a29a";
+        e.style.borderColor = "rgba(30,25,20,.09)";
+        e.classList.remove("hot");
+      }
+      e.dataset.n = n > 0 ? "1" : "0";
+      k.numEl.textContent = showNums && n > 0 ? fmt(n) : "";
+    });
+  }
+
+  function fmt(n) {
+    if (n >= 100000) return Math.round(n / 1000) + "k";
+    if (n >= 10000) return (n / 1000).toFixed(1) + "k";
+    return String(n);
+  }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+  // ---- tooltip ----
+  function showTip(k) {
+    var label = k.label === "Space" ? "空格" : k.label;
+    if (k.noVk) {
+      tip.innerHTML = "<b>" + label + "</b><span class='m'> · 硬件层按键，系统收不到</span>";
+      tip.classList.add("show");
+      return;
+    }
+    var n = countOf(k, lastCounts);
+    var total = 0, key;
+    for (key in lastCounts) total += lastCounts[key];
+    var pct = total ? (n / total * 100) : 0;
+    var extra = k.vks ? "（旋钮：静音 / 音量±）" : "";
+    tip.innerHTML = "<b>" + label + "</b>"
+      + " <span class='m'>· " + fmt(n) + " 次 · " + pct.toFixed(1) + "%" + extra + "</span>";
+    tip.classList.add("show");
+  }
+  function moveTip(e) {
+    var x = e.clientX + 14, y = e.clientY - 34;
+    if (x + tip.offsetWidth > window.innerWidth - 8) x = e.clientX - tip.offsetWidth - 14;
+    if (y < 6) y = e.clientY + 20;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip() { tip.classList.remove("show"); }
+
+  // ---- 更新 ----
+  var updateInfo = null, updateHidden = false, updating = false;
+
+  function renderUpdate(up) {
+    var bar = document.getElementById("updateBar");
+    var title = document.getElementById("ubTitle");
+    var subEl = document.getElementById("ubSub");
+    var act = document.getElementById("ubAction");
+    if (!up) { bar.hidden = true; return; }
+    var st = up.state || "idle";
+    var latest = up.latest ? "v" + up.latest : "";
+
+    if (st === "available") {
+      if (updateHidden) { bar.hidden = true; return; }
+      bar.hidden = false; bar.classList.remove("err");
+      title.textContent = "发现新版本 " + latest;
+      subEl.textContent = up.notes ? up.notes.split("\n")[0].slice(0, 90) : "点右侧立即更新，下载完成后会自动重启";
+      act.textContent = "立即更新"; act.disabled = false;
+    } else if (st === "downloading") {
+      bar.hidden = false; bar.classList.remove("err");
+      title.textContent = "正在下载 " + latest;
+      var pct = Math.round((up.progress || 0) * 100);
+      subEl.textContent = pct + "% · 下载完成后会自动替换并重启";
+      act.textContent = pct + "%"; act.disabled = true;
+    } else if (st === "ready") {
+      bar.hidden = false; bar.classList.remove("err");
+      title.textContent = "更新完成，正在重启…";
+      subEl.textContent = "程序会自动重新打开，页面稍后自动恢复";
+      act.textContent = "重启中"; act.disabled = true;
+    } else if (st === "error") {
+      if (updating) return;                       // 更新过程中的错误由下方提示接管
+      bar.hidden = false; bar.classList.add("err");
+      title.textContent = "检查更新失败";
+      subEl.textContent = (up.error || "未知错误") + (up.frozen === false ? "（源码模式不支持自动替换）" : "");
+      act.textContent = "重试"; act.disabled = false;
+    } else {
+      bar.hidden = true;
+    }
+  }
+
+  function checkUpdate() {
+    var t = document.getElementById("verText");
+    document.getElementById("lnkCheck").textContent = "检查中…";
+    control("check_update").then(function () {
+      setTimeout(function () { document.getElementById("lnkCheck").textContent = "检查更新"; }, 2500);
+    });
+  }
+
+  // ---- 状态 ----
+  var range = "today";
+  var paused = false;
+  var autoOn = false;
+
+  function applyStats(d) {
+    document.getElementById("statAll").textContent = d.total_all.toLocaleString("en-US");
+    document.getElementById("statAllSub").textContent = "本次 " + d.session_total.toLocaleString("en-US") + " 次 · " + d.active_days + " 天记录";
+    document.getElementById("statToday").textContent = d.today_total.toLocaleString("en-US");
+    var now = new Date();
+    document.getElementById("statTodaySub").textContent =
+      now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+    document.getElementById("statKpm").textContent = d.kpm.toLocaleString("en-US");
+
+    // 最热键（按当前范围）
+    var topVk = null, topN = 0, total = 0;
+    for (var vk in d.counts) {
+      total += d.counts[vk];
+      if (d.counts[vk] > topN) { topN = d.counts[vk]; topVk = vk; }
+    }
+    var tk = document.getElementById("topKey");
+    var ts = document.getElementById("topKeySub");
+    if (topVk !== null) {
+      var name = keyName(topVk);
+      tk.textContent = name === "Space" ? "空格" : name;
+      ts.textContent = fmt(topN) + " 次 · 占比 " + (total ? (topN / total * 100).toFixed(1) : "0") + "%";
+    } else {
+      tk.textContent = "—";
+      ts.textContent = "开始打字试试";
+    }
+
+    if (!serverLayoutDone && d.layout) {
+      serverLayoutDone = true;
+      if (!CUR || d.layout !== CUR.id) render(d.layout);
+    }
+
+    setPaused(d.paused);
+    if (d.version) {
+      var vt = document.getElementById("verText");
+      vt.textContent = "v" + d.version;
+    }
+    if (d.update) {
+      updateInfo = d.update;
+      renderUpdate(d.update);
+      if (d.update.state === "uptodate" && !d.update.latest) { /* 保持安静 */ }
+    }
+
+    autoOn = !!d.autostart;
+    var ba = document.getElementById("btnAuto");
+    if (ba) {
+      ba.textContent = "开机自启 · " + (autoOn ? "开" : "关");
+      ba.classList.toggle("on", autoOn);
+    }
+    if (d.hook_ok === false) {
+      document.getElementById("statusText").textContent = "监听失败";
+      document.getElementById("dot").className = "dot off";
+      document.getElementById("hint").textContent = "键盘钩子没装上：试试以管理员身份运行启动器";
+    } else {
+      document.getElementById("hint").textContent = "共 " + Object.keys(d.counts).length + " 个键被按过";
+    }
+  }
+
+  function setPaused(p) {
+    paused = p;
+    var dot = document.getElementById("dot");
+    document.getElementById("statusText").textContent = p ? "已暂停" : "监听中";
+    dot.className = "dot" + (p ? " off" : " live");
+    document.getElementById("btnPause").textContent = p ? "继续统计" : "暂停统计";
+  }
+
+  // ---- 轮询 ----
+  var timer = null;
+  var quitting = false;
+  var serverLayoutDone = false;
+  function tick() {
+    fetch("/api/stats?range=" + range, { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { paint(d.counts); applyStats(d); })
+      .catch(function () {
+        if (quitting) return;
+        if (updating) {
+          document.getElementById("statusText").textContent = "正在重启…";
+          document.getElementById("dot").className = "dot off";
+          return;
+        }
+        document.getElementById("statusText").textContent = "连接断开";
+        document.getElementById("dot").className = "dot off";
+      })
+      .then(function () { if (!quitting) timer = setTimeout(tick, 650); });
+  }
+
+  // ---- 交互 ----
+  document.querySelectorAll(".tabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".tabs button").forEach(function (x) { x.setAttribute("aria-selected", "false"); });
+      b.setAttribute("aria-selected", "true");
+      range = b.dataset.range;
+      clearTimeout(timer);
+      tick();
+    });
+  });
+
+  function control(action, extra) {
+    var body = { action: action };
+    if (extra) { for (var k in extra) body[k] = extra[k]; }
+    return fetch("/api/control", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function () { tick(); });
+  }
+
+  document.getElementById("btnPause").addEventListener("click", function () {
+    control(paused ? "resume" : "pause");
+  });
+
+  document.getElementById("ubAction").addEventListener("click", function () {
+    if (!updateInfo) return;
+    if (updateInfo.state === "error" && !(updateInfo.latest)) { checkUpdate(); return; }
+    if (updateInfo.state !== "available") return;
+    if (!confirm("下载新版本并重启程序？\n统计不受影响，数据会自动保存。")) return;
+    updating = true;
+    document.getElementById("ubTitle").textContent = "正在下载…";
+    document.getElementById("ubAction").disabled = true;
+    control("do_update");
+  });
+
+  document.getElementById("ubClose").addEventListener("click", function () {
+    updateHidden = true;
+    document.getElementById("updateBar").hidden = true;
+  });
+
+  document.getElementById("lnkCheck").addEventListener("click", function (e) {
+    e.preventDefault();
+    checkUpdate();
+  });
+
+  document.getElementById("btnAuto").addEventListener("click", function () {
+    control("set_autostart", { on: !autoOn });
+  });
+
+  document.getElementById("btnNums").addEventListener("click", function () {
+    showNums = !showNums;
+    this.textContent = showNums ? "隐藏数字" : "显示数字";
+    paint(lastCounts);
+  });
+
+  document.getElementById("btnCsv").addEventListener("click", function () {
+    var total = 0, vk;
+    for (vk in lastCounts) total += lastCounts[vk];
+    var rows = [["按键", "虚拟键码", "次数", "占比"]];
+    var list = [];
+    for (vk in lastCounts) {
+      if (lastCounts[vk] > 0) list.push({ name: keyName(vk), vk: vk, n: lastCounts[vk] });
+    }
+    list.sort(function (a, b) { return b.n - a.n; });
+    list.forEach(function (x) {
+      rows.push([x.name, x.vk, x.n, total ? (x.n / total * 100).toFixed(2) + "%" : "0%"]);
+    });
+    var csv = "\ufeff" + rows.map(function (r) { return r.join(","); }).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "keyheat-" + range + "-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById("btnResetToday").addEventListener("click", function () {
+    if (!confirm("清空今天（" + new Date().toLocaleDateString("zh-CN") + "）的统计？累计数据不受影响。")) return;
+    control("reset_today");
+  });
+
+  document.getElementById("btnResetAll").addEventListener("click", function () {
+    if (!confirm("清空全部历史统计？此操作不可恢复。")) return;
+    control("reset_all");
+  });
+
+  document.getElementById("btnQuit").addEventListener("click", function () {
+    if (!confirm("退出 KeyHeat？数据会先保存。\n下次双击「无窗口启动」即可继续统计。")) return;
+    quitting = true;
+    clearTimeout(timer);
+    this.disabled = true;
+    this.textContent = "正在退出…";
+    document.getElementById("statusText").textContent = "已退出";
+    document.getElementById("dot").className = "dot off";
+    document.querySelectorAll(".btn, .tabs button").forEach(function (b) { b.disabled = true; });
+    fetch("/api/control", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "quit" })
+    }).catch(function () { /* 进程退出时连接被断开是正常的 */ });
+    setTimeout(function () {
+      document.getElementById("hint").textContent = "已退出，可以关闭此页";
+      document.querySelectorAll(".btn").forEach(function (b) { b.disabled = false; });
+      document.getElementById("btnPause").textContent = "已停止";
+      document.getElementById("btnPause").disabled = true;
+    }, 1200);
+  });
+
+  // 空格键快速暂停 / 继续
+  window.addEventListener("keydown", function (e) {
+    if (e.code === "Space" && e.altKey) { e.preventDefault(); control(paused ? "resume" : "pause"); }
+  });
+
+  // ---- 启动 ----
+  if (layoutSel) {
+    LAYOUTS.forEach(function (d) {
+      var o = document.createElement("option");
+      o.value = d.id;
+      o.textContent = d.name;
+      layoutSel.appendChild(o);
+    });
+    layoutSel.addEventListener("change", function () {
+      var id = this.value;
+      render(id);
+      fetch("/api/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_layout", id: id })
+      }).catch(function () {});
+    });
+  }
+
+  // 支持 #layout=full 直接指定（方便收藏某个布局），此时不被服务端设置覆盖
+  var hashId = (location.hash.match(/layout=([a-z0-9]+)/i) || [])[1];
+  if (hashId && findLayout(hashId).id === hashId) {
+    render(hashId);
+    serverLayoutDone = true;
+  } else {
+    render(DEFAULT_LAYOUT);
+  }
+  tick();
+  var rt = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () { layout(); paint(lastCounts); }, 90);
+  });
+})();
+</script>
+</body>
+</html>
